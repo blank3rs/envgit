@@ -20,6 +20,9 @@ import { verify } from '../src/commands/verify.js';
 import { rotateKey } from '../src/commands/rotate-key.js';
 import { share } from '../src/commands/share.js';
 import { join } from '../src/commands/join.js';
+import { doctor } from '../src/commands/doctor.js';
+import { audit } from '../src/commands/audit.js';
+import { template } from '../src/commands/template.js';
 
 program
   .name('envgit')
@@ -138,6 +141,23 @@ program
   .command('rotate-key')
   .description('Generate a new key and re-encrypt all environments')
   .action(rotateKey);
+
+program
+  .command('doctor')
+  .description('Check project health — key, envs, git safety')
+  .action(doctor);
+
+program
+  .command('audit')
+  .description('Show which keys are missing across environments')
+  .action(audit);
+
+program
+  .command('template')
+  .description('Generate a .env.example with all keys but no values')
+  .option('-o, --output <path>', 'output file path', '.env.example')
+  .option('-f, --force', 'overwrite if file already exists')
+  .action(template);
 
 program
   .command('share')

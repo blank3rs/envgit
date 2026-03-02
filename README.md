@@ -174,6 +174,15 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 | `envgit run -- node server.js` | Run a command with env vars injected, nothing written to disk |
 | `envgit import --file .env.local` | Encrypt an existing `.env` file |
 
+### Utilities
+
+| Command | Description |
+|---------|-------------|
+| `envgit doctor` | Check everything — key, envs, git safety — in one shot |
+| `envgit audit` | Show which keys are missing across environments |
+| `envgit template` | Generate a `.env.example` with all keys, no values |
+| `envgit template --output .env.example --force` | Overwrite existing file |
+
 ### Status
 
 | Command | Description |
