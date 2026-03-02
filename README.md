@@ -14,7 +14,7 @@ npm install -g @akshxy/envgit
 
 - Secrets are encrypted with **AES-256-GCM** and live in `.envgit/` — safe to commit
 - The key lives on **your machine only** (`~/.config/envgit/keys/`) — never touches the repo
-- Teammates just run `envgit keygen --set <key>` after cloning — no manual file management
+- Onboard a teammate in one command: `envgit share` → send them the link → they run `envgit join`
 - `envgit unpack dev` writes a clean, **beautifully formatted `.env`** grouped by service
 
 ---
@@ -49,17 +49,22 @@ envgit init
 envgit set DB_URL=postgres://... OPENAI_API_KEY=sk-...
 git add .envgit/ && git commit -m "chore: encrypted env"
 
-envgit keygen --show
-# Prints your key — send it to teammates via 1Password, Bitwarden, etc.
+envgit share
+# ✓ Key encrypted and uploaded. Link expires in 24 hours, usable once.
+#
+#   envgit join abc123... --code Xk9mP2...==
+#
+# Send that one line to your teammate — nothing else needed.
 
 # ── Developer B (teammate, after cloning) ─────────────────
-envgit keygen --set <key-from-teammate>
-# Key is saved to ~/.config/envgit/keys/<project-id>.key automatically
-# No file paths to think about — it just works
+envgit join abc123... --code Xk9mP2...==
+# ✓ Key saved to ~/.config/envgit/keys/<project-id>.key
 
 envgit verify        # confirm the key works
 envgit unpack dev    # writes .env
 ```
+
+The relay is **cryptographically blind** — it stores only AES-256-GCM ciphertext and never sees the passphrase. The link is deleted the moment your teammate uses it.
 
 ---
 
@@ -127,8 +132,10 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 |---------|-------------|
 | `envgit init` | Initialize project, generate key, save to `~/.config/envgit/keys/` |
 | `envgit keygen` | Generate a new key for the current project |
-| `envgit keygen --show` | Print current key to share with teammates |
-| `envgit keygen --set <key>` | Save a teammate's key for the current project |
+| `envgit keygen --show` | Print current key |
+| `envgit keygen --set <key>` | Save a key for the current project |
+| `envgit share` | Upload encrypted key to a one-time relay link |
+| `envgit join <token> --code <passphrase>` | Download and save a key shared via `envgit share` |
 | `envgit rotate-key` | Generate new key and re-encrypt all environments |
 | `envgit verify` | Confirm all environments decrypt with the current key |
 
@@ -216,3 +223,6 @@ ENVGIT_KEY=$(cat ~/.config/envgit/keys/<id>.key) envgit run -- node server.js
 - **File permissions enforced** — key files are locked to `0600`, errors if too permissive
 - **Key bytes zeroized** from memory immediately after use
 - **No plaintext ever written** except when you explicitly run `envgit unpack`
+- **Relay is blind** — `envgit share` encrypts your key with a one-time passphrase before upload. The relay stores only ciphertext and never sees the passphrase. Even a full relay compromise leaks nothing.
+- **One-time links** — tokens are deleted on first use via a strongly consistent Durable Object. Replay attacks are impossible.
+- **24-hour TTL** — unclaimed tokens are automatically destroyed
