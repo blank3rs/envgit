@@ -18,6 +18,8 @@ import { envs } from '../src/commands/envs.js';
 import { exportEnv } from '../src/commands/export.js';
 import { verify } from '../src/commands/verify.js';
 import { rotateKey } from '../src/commands/rotate-key.js';
+import { share } from '../src/commands/share.js';
+import { join } from '../src/commands/join.js';
 
 program
   .name('envgit')
@@ -136,5 +138,16 @@ program
   .command('rotate-key')
   .description('Generate a new key and re-encrypt all environments')
   .action(rotateKey);
+
+program
+  .command('share')
+  .description('Upload your encrypted key to a one-time relay link for a teammate')
+  .action(share);
+
+program
+  .command('join <token>')
+  .description('Download and save a key shared via envgit share')
+  .requiredOption('--code <passphrase>', 'decryption passphrase from the share link')
+  .action(join);
 
 program.parse();
