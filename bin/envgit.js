@@ -23,6 +23,7 @@ import { join } from '../src/commands/join.js';
 import { doctor } from '../src/commands/doctor.js';
 import { audit } from '../src/commands/audit.js';
 import { template } from '../src/commands/template.js';
+import { scan } from '../src/commands/scan.js';
 
 program
   .name('envgit')
@@ -141,6 +142,11 @@ program
   .command('rotate-key')
   .description('Generate a new key and re-encrypt all environments')
   .action(rotateKey);
+
+program
+  .command('scan')
+  .description('Scan codebase for hardcoded secrets using pattern matching and entropy analysis')
+  .action(scan);
 
 program
   .command('doctor')

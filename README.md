@@ -176,6 +176,7 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 
 ### Utilities
 
+
 | Command | Description |
 |---------|-------------|
 | `envgit doctor` | Check everything — key, envs, git safety — in one shot |
@@ -235,3 +236,75 @@ ENVGIT_KEY=$(cat ~/.config/envgit/keys/<id>.key) envgit run -- node server.js
 - **Relay is blind** — `envgit share` encrypts your key with a one-time passphrase before upload. The relay stores only ciphertext and never sees the passphrase. Even a full relay compromise leaks nothing.
 - **One-time links** — tokens are deleted on first use via a strongly consistent Durable Object. Replay attacks are impossible.
 - **24-hour TTL** — unclaimed tokens are automatically destroyed
+
+---
+
+## Threat model
+
+**What envgit protects against**
+
+| Threat | Protection |
+|--------|-----------|
+| `.env` accidentally committed to git | Encrypted files are safe to commit — plaintext never touches the repo |
+| Secrets shared over Slack, email, chat | `envgit share` uses a blind relay and one-time encrypted links |
+| Teammate's machine is compromised | Key is per-machine — compromise one machine, not all |
+| Relay is breached | Relay stores only AES-256-GCM ciphertext. Passphrase never sent to relay. Useless without the passphrase. |
+| Secrets hardcoded in source | `envgit scan` detects these using pattern matching and entropy analysis |
+
+**What envgit does NOT protect against**
+
+- A compromised machine where the key file is readable — if your machine is owned, the key is accessible
+- Secrets that have already been committed in plaintext to git history — use `git filter-repo` to scrub those
+- An attacker who intercepts both the relay token AND the passphrase at the same time — treat the passphrase like a password
+
+---
+
+## How it works
+
+```
+Your machine                  Relay                    Teammate's machine
+────────────────              ──────────────────       ──────────────────────
+                              (Cloudflare Worker)
+project.key (32 bytes)
+    │
+    ▼
+encrypt with                  ┌──────────────────┐
+one-time passphrase  ──────►  │  ciphertext only │  ──────►  fetch + decrypt
+                              │  deleted on read  │           with passphrase
+    │                         │  TTL: 24 hours   │               │
+    ▼                         └──────────────────┘               ▼
+envgit share                                             envgit join <token>
+prints:                                                  --code <passphrase>
+  token + passphrase                                         │
+                                                             ▼
+                                                     key saved to
+                                                     ~/.config/envgit/keys/
+```
+
+The relay is stateless and blind. It cannot reconstruct the key. Only the machine with the passphrase can decrypt.
+
+---
+
+## Crypto decisions
+
+**Why AES-256-GCM?**
+GCM is an authenticated encryption mode — it detects tampering. If anyone modifies the ciphertext (even one byte), decryption fails loudly rather than silently returning corrupt data. This matters for secrets: you want to know immediately if something has been tampered with.
+
+**Why 32 bytes of entropy?**
+NIST recommends 128-bit minimum for symmetric keys. envgit uses 256-bit (32 bytes) from `crypto.randomBytes`, which reads from the OS CSPRNG. This is the same source used by OpenSSL and Node's TLS stack.
+
+**Why a fresh IV per write?**
+AES-GCM requires a unique IV per (key, message) pair. Reusing an IV with the same key catastrophically breaks confidentiality — an attacker can XOR two ciphertexts to cancel out the keystream. envgit generates a new random IV on every write, making this impossible.
+
+**Why zeroize key bytes after use?**
+Node.js buffers live in V8's heap. Without explicit zeroization, key bytes can persist in memory until GC runs — and could potentially be read from a core dump or swap file. envgit calls `buffer.fill(0)` immediately after the crypto operation completes.
+
+---
+
+## Commands
+
+### Scan
+
+| Command | Description |
+|---------|-------------|
+| `envgit scan` | Scan entire codebase for hardcoded secrets using patterns + entropy |
