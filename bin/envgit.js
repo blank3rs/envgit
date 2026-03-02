@@ -1,0 +1,140 @@
+#!/usr/bin/env node
+import { program } from 'commander';
+import { init } from '../src/commands/init.js';
+import { set } from '../src/commands/set.js';
+import { get } from '../src/commands/get.js';
+import { unpack } from '../src/commands/unpack.js';
+import { list } from '../src/commands/list.js';
+import { importEnv } from '../src/commands/import.js';
+import { addEnv } from '../src/commands/add-env.js';
+import { status } from '../src/commands/status.js';
+import { keygen } from '../src/commands/keygen.js';
+import { deleteKey } from '../src/commands/delete.js';
+import { copy } from '../src/commands/copy.js';
+import { renameKey } from '../src/commands/rename-key.js';
+import { diff } from '../src/commands/diff.js';
+import { run } from '../src/commands/run.js';
+import { envs } from '../src/commands/envs.js';
+import { exportEnv } from '../src/commands/export.js';
+import { verify } from '../src/commands/verify.js';
+import { rotateKey } from '../src/commands/rotate-key.js';
+
+program
+  .name('envgit')
+  .description('Encrypted per-project environment variable manager')
+  .version('0.1.0')
+  .enablePositionalOptions();
+
+program
+  .command('init')
+  .description('Initialize envgit in the current project')
+  .option('--env <name>', 'default environment name', 'dev')
+  .action(init);
+
+program
+  .command('status')
+  .description('Show project root, active env, key source, and .env state')
+  .action(status);
+
+program
+  .command('set [assignments...]')
+  .description('Set KEY=VALUE pairs, or load from a file with -f')
+  .option('--env <name>', 'target environment')
+  .option('-f, --file <path>', 'read variables from a .env file')
+  .action(set);
+
+program
+  .command('get <key>')
+  .description('Print a value by key (defaults to active env)')
+  .option('--env <name>', 'target environment')
+  .action(get);
+
+program
+  .command('unpack <env>')
+  .alias('switch')
+  .alias('pull')
+  .description('Decrypt <env> and write a clean .env file, sets it as active')
+  .action(unpack);
+
+program
+  .command('list')
+  .description('List keys in an environment (defaults to active env)')
+  .option('--env <name>', 'target environment')
+  .option('--show-values', 'print values alongside keys')
+  .action(list);
+
+program
+  .command('import')
+  .description('Encrypt an existing .env file into an environment')
+  .option('--env <name>', 'target environment')
+  .option('--file <path>', 'source file to import', '.env')
+  .action(importEnv);
+
+program
+  .command('add-env <name>')
+  .description('Add a new environment')
+  .action(addEnv);
+
+program
+  .command('keygen')
+  .description('Generate or manage the encryption key')
+  .option('--show', 'print current key (for sharing with teammates)')
+  .option('--set <key>', 'save a received key to .envgit.key')
+  .action(keygen);
+
+program
+  .command('delete <key>')
+  .description('Remove a key from the encrypted env')
+  .option('--env <name>', 'target environment')
+  .action(deleteKey);
+
+program
+  .command('copy <key>')
+  .description('Copy a key\'s value between two environments')
+  .requiredOption('--from <env>', 'source environment')
+  .requiredOption('--to <env>', 'destination environment')
+  .action(copy);
+
+program
+  .command('rename <old-key> <new-key>')
+  .description('Rename a key within an environment')
+  .option('--env <name>', 'target environment')
+  .action(renameKey);
+
+program
+  .command('diff [env1] [env2]')
+  .description('Show differences between two environments')
+  .option('--show-values', 'reveal values in diff output')
+  .action(diff);
+
+program
+  .command('run [args...]')
+  .description('Spawn a command with decrypted env vars injected')
+  .option('--env <name>', 'environment to use')
+  .allowUnknownOption()
+  .passThroughOptions()
+  .action(run);
+
+program
+  .command('envs')
+  .description('List all environments with variable counts')
+  .action(envs);
+
+program
+  .command('export')
+  .description('Print decrypted vars to stdout (dotenv, json, or shell format)')
+  .option('--env <name>', 'target environment')
+  .option('--format <fmt>', 'output format: dotenv, json, shell', 'dotenv')
+  .action(exportEnv);
+
+program
+  .command('verify')
+  .description('Attempt to decrypt every .enc file with the current key')
+  .action(verify);
+
+program
+  .command('rotate-key')
+  .description('Generate a new key and re-encrypt all environments')
+  .action(rotateKey);
+
+program.parse();
