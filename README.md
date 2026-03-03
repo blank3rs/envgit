@@ -15,7 +15,7 @@ npm install -g @akshxy/envgit
 - Secrets are encrypted with **AES-256-GCM** and live in `.envgit/` — safe to commit
 - The key lives on **your machine only** (`~/.config/envgit/keys/`) — never touches the repo
 - Onboard a teammate in one command: `envgit share` → send them the link → they run `envgit join`
-- `envgit unpack dev` writes a clean, **beautifully formatted `.env`** grouped by service
+- `envgit unpack` writes a clean, **beautifully formatted `.env`** grouped by service
 
 ---
 
@@ -35,8 +35,9 @@ envgit set -f .env.local
 git add .envgit/
 git commit -m "chore: add encrypted env"
 
-# 5. Write .env locally whenever you need it
-envgit unpack dev
+# 5. Switch env and write .env locally
+envgit use dev
+envgit unpack
 ```
 
 ---
