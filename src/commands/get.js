@@ -2,7 +2,8 @@ import { requireProjectRoot, loadKey } from '../keystore.js';
 import { resolveEnv } from '../config.js';
 import { readEncEnv } from '../enc.js';
 import { getCurrentEnv } from '../state.js';
-import { fatal, label } from '../ui.js';
+import { fatal, label, envLabel } from '../ui.js';
+import { pickKey } from '../interactive.js';
 
 export async function get(key, options) {
   const projectRoot = requireProjectRoot();
@@ -11,9 +12,9 @@ export async function get(key, options) {
 
   const vars = readEncEnv(projectRoot, envName, encKey);
 
-  if (!(key in vars)) {
-    fatal(`Key '${key}' not found in ${label(envName)}`);
-  }
+  const keyName = key ?? await pickKey(vars, `Key to get from [${envName}]`);
 
-  console.log(vars[key]);
+  if (!(keyName in vars)) fatal(`Key '${keyName}' not found in ${envLabel(envName)}`);
+
+  console.log(vars[keyName]);
 }

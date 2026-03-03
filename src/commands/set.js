@@ -5,7 +5,8 @@ import { resolveEnv } from '../config.js';
 import { readEncEnv, writeEncEnv } from '../enc.js';
 import { readEnvFile } from '../envfile.js';
 import { getCurrentEnv } from '../state.js';
-import { ok, fatal, label } from '../ui.js';
+import { ok, fatal, label, envLabel } from '../ui.js';
+import { pickKey, promptValue } from '../interactive.js';
 
 export async function set(assignments, options) {
   const projectRoot = requireProjectRoot();
@@ -16,28 +17,28 @@ export async function set(assignments, options) {
 
   if (options.file) {
     const filePath = join(projectRoot, options.file);
-    if (!existsSync(filePath)) {
-      fatal(`File not found: ${options.file}`);
-    }
+    if (!existsSync(filePath)) fatal(`File not found: ${options.file}`);
     const fileVars = readEnvFile(filePath);
     const entries = Object.entries(fileVars);
-    if (entries.length === 0) {
-      fatal(`No variables found in ${options.file}`);
-    }
+    if (entries.length === 0) fatal(`No variables found in ${options.file}`);
     for (const [k, v] of entries) {
       vars[k] = v;
-      ok(`Set ${k} in ${label(envName)}`);
+      ok(`Set ${k} in ${envLabel(envName)}`);
     }
+  } else if (assignments.length === 0) {
+    // ── Interactive mode ───────────────────────────────────────────────────
+    const keyName = await pickKey(vars, `Key to set in [${envName}]`, { allowNew: true });
+    const value   = await promptValue(keyName, vars[keyName]);
+    vars[keyName] = value;
+    ok(`Set ${keyName} in ${envLabel(envName)}`);
   } else {
     for (const assignment of assignments) {
       const eqIdx = assignment.indexOf('=');
-      if (eqIdx === -1) {
-        fatal(`Invalid assignment '${assignment}'. Expected KEY=VALUE format.`);
-      }
+      if (eqIdx === -1) fatal(`Invalid assignment '${assignment}'. Expected KEY=VALUE format.`);
       const k = assignment.slice(0, eqIdx).trim();
       const v = assignment.slice(eqIdx + 1);
       vars[k] = v;
-      ok(`Set ${k} in ${label(envName)}`);
+      ok(`Set ${k} in ${envLabel(envName)}`);
     }
   }
 

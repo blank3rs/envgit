@@ -1,27 +1,33 @@
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { requireProjectRoot, loadKey } from '../keystore.js';
-import { getEncPath } from '../config.js';
+import { loadConfig, getEncPath } from '../config.js';
 import { readEncEnv } from '../enc.js';
 import { writeEnvFile } from '../envfile.js';
-import { setCurrentEnv } from '../state.js';
-import { ok, fatal, label, dim } from '../ui.js';
+import { getCurrentEnv, setCurrentEnv } from '../state.js';
+import { ok, fatal, dim, envLabel } from '../ui.js';
+import { pickEnv } from '../interactive.js';
 
-export async function unpack(envName) {
+export async function unpack(envArg) {
   const projectRoot = requireProjectRoot();
-  const key = loadKey(projectRoot);
+  const key         = loadKey(projectRoot);
+  const config      = loadConfig(projectRoot);
+  const current     = getCurrentEnv(projectRoot);
 
-  const encPath = getEncPath(projectRoot, envName);
+  // Priority: explicit arg → active env → interactive pick
+  const name = envArg
+    ?? current
+    ?? await pickEnv(config.envs, 'Which environment to unpack?');
+
+  const encPath = getEncPath(projectRoot, name);
   if (!existsSync(encPath)) {
-    fatal(`Environment '${envName}' does not exist. Use 'envgit add-env ${envName}' to create it.`);
+    fatal(`Environment '${name}' does not exist. Create it with: envgit add-env ${name}`);
   }
 
-  const vars = readEncEnv(projectRoot, envName, key);
-  const dotenvPath = join(projectRoot, '.env');
-  writeEnvFile(dotenvPath, vars, { envName, projectRoot });
-  setCurrentEnv(projectRoot, envName);
+  const vars = readEncEnv(projectRoot, name, key);
+  writeEnvFile(join(projectRoot, '.env'), vars, { envName: name, projectRoot });
+  setCurrentEnv(projectRoot, name);
 
   const count = Object.keys(vars).length;
-  console.log(dim(projectRoot));
-  ok(`Unpacked ${label(envName)} → .env ${dim(`(${count} variable${count !== 1 ? 's' : ''})`)}`);
+  ok(`Unpacked ${envLabel(name)} → .env ${dim(`(${count} var${count !== 1 ? 's' : ''})`)}`);
 }

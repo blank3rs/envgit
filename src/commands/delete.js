@@ -2,7 +2,8 @@ import { requireProjectRoot, loadKey } from '../keystore.js';
 import { resolveEnv } from '../config.js';
 import { readEncEnv, writeEncEnv } from '../enc.js';
 import { getCurrentEnv } from '../state.js';
-import { ok, fatal, label } from '../ui.js';
+import { ok, fatal, label, envLabel } from '../ui.js';
+import { pickKey, promptConfirm } from '../interactive.js';
 
 export async function deleteKey(keyName, options) {
   const projectRoot = requireProjectRoot();
@@ -11,11 +12,16 @@ export async function deleteKey(keyName, options) {
 
   const vars = readEncEnv(projectRoot, envName, key);
 
-  if (!(keyName in vars)) {
-    fatal(`Key '${keyName}' not found in ${label(envName)}`);
+  const name = keyName ?? await pickKey(vars, `Key to delete from [${envName}]`);
+
+  if (!(name in vars)) fatal(`Key '${name}' not found in ${envLabel(envName)}`);
+
+  if (!keyName) {
+    const confirmed = await promptConfirm(`Delete ${name} from [${envName}]?`);
+    if (!confirmed) { process.exit(0); }
   }
 
-  delete vars[keyName];
+  delete vars[name];
   writeEncEnv(projectRoot, envName, key, vars);
-  ok(`Deleted ${keyName} from ${label(envName)}`);
+  ok(`Deleted ${name} from ${envLabel(envName)}`);
 }

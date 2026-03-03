@@ -44,8 +44,8 @@ export async function init(options) {
   console.log(dim('Commit .envgit/ to share encrypted environments with your team.'));
   console.log(dim('Your key never touches the repo — it lives only on your machine.'));
   console.log('');
-  console.log(`Share your key with teammates:  ${bold('envgit keygen --show')}`);
-  console.log(`Teammates save it with:         ${bold('envgit keygen --set <key>')}`);
+  console.log(`Share your key with teammates:  ${bold('envgit share')}`);
+  console.log(`Teammates receive it with:      ${bold('envgit join <token> --code <passphrase>')}`);
   console.log('');
 }
 

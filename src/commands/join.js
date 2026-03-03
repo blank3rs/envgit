@@ -45,6 +45,6 @@ export async function join(token, options) {
   console.log(dim(`  Stored at: ${keyPath}`));
   console.log('');
   console.log(dim('Run `envgit verify` to confirm it works.'));
-  console.log(dim('Run `envgit unpack dev` to write your .env file.'));
+  console.log(dim('Run `envgit unpack` to write your .env file.'));
   console.log('');
 }

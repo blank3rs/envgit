@@ -1,24 +1,26 @@
 import { requireProjectRoot, loadKey } from '../keystore.js';
+import { loadConfig } from '../config.js';
 import { readEncEnv, writeEncEnv } from '../enc.js';
-import { ok, fatal, label } from '../ui.js';
+import { ok, fatal, label, envLabel } from '../ui.js';
+import { pickKey, pickEnv } from '../interactive.js';
 
 export async function copy(keyName, options) {
-  if (!options.from || !options.to) {
-    fatal('Both --from and --to environments are required.');
-  }
-
   const projectRoot = requireProjectRoot();
   const key = loadKey(projectRoot);
+  const config = loadConfig(projectRoot);
 
-  const srcVars = readEncEnv(projectRoot, options.from, key);
+  const from = options.from ?? await pickEnv(config.envs, 'Copy from environment');
+  const to   = options.to   ?? await pickEnv(config.envs.filter(e => e !== from), 'Copy to environment');
 
-  if (!(keyName in srcVars)) {
-    fatal(`Key '${keyName}' not found in ${label(options.from)}`);
-  }
+  const srcVars = readEncEnv(projectRoot, from, key);
 
-  const dstVars = readEncEnv(projectRoot, options.to, key);
-  dstVars[keyName] = srcVars[keyName];
-  writeEncEnv(projectRoot, options.to, key, dstVars);
+  const name = keyName ?? await pickKey(srcVars, `Key to copy from [${from}]`);
 
-  ok(`Copied ${keyName} from ${label(options.from)} → ${label(options.to)}`);
+  if (!(name in srcVars)) fatal(`Key '${name}' not found in ${envLabel(from)}`);
+
+  const dstVars = readEncEnv(projectRoot, to, key);
+  dstVars[name] = srcVars[name];
+  writeEncEnv(projectRoot, to, key, dstVars);
+
+  ok(`Copied ${name} from ${envLabel(from)} → ${envLabel(to)}`);
 }

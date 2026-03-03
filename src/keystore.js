@@ -46,7 +46,7 @@ export function loadKey(projectRoot) {
     }
     // Project found, but this machine doesn't have the key yet
     console.error(
-      `No key found for this project. Ask your team for the key, then run:\n  envgit keygen --set <key>`
+      `No key found for this project. Ask a teammate to run:\n  envgit share\nthen run the join command they send you.`
     );
     process.exit(1);
   }
@@ -59,7 +59,7 @@ export function loadKey(projectRoot) {
   }
 
   console.error(
-    `No key found for this project. Ask your team for the key, then run:\n  envgit keygen --set <key>`
+    `No key found for this project. Ask a teammate to run:\n  envgit share\nthen run the join command they send you.`
   );
   process.exit(1);
 }

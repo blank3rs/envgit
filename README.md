@@ -61,7 +61,7 @@ envgit join abc123... --code Xk9mP2...==
 # ✓ Key saved to ~/.config/envgit/keys/<project-id>.key
 
 envgit verify        # confirm the key works
-envgit unpack dev    # writes .env
+envgit unpack        # writes .env (picks up active env)
 ```
 
 The relay is **cryptographically blind** — it stores only AES-256-GCM ciphertext and never sees the passphrase. The link is deleted the moment your teammate uses it.
@@ -131,15 +131,14 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 | Command | Description |
 |---------|-------------|
 | `envgit init` | Initialize project, generate key, save to `~/.config/envgit/keys/` |
-| `envgit keygen` | Generate a new key for the current project |
-| `envgit keygen --show` | Print current key |
-| `envgit keygen --set <key>` | Save a key for the current project |
 | `envgit share` | Upload encrypted key to a one-time relay link |
 | `envgit join <token> --code <passphrase>` | Download and save a key shared via `envgit share` |
-| `envgit rotate-key` | Generate new key and re-encrypt all environments |
+| `envgit rotate-key` | Generate new key and re-encrypt all environments, then run `envgit share` |
 | `envgit verify` | Confirm all environments decrypt with the current key |
 
 ### Variables
+
+All variable commands are **interactive** — run them without arguments to get a fuzzy search picker.
 
 | Command | Description |
 |---------|-------------|
@@ -149,6 +148,7 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 | `envgit get KEY` | Print a single value |
 | `envgit delete KEY` | Remove a variable |
 | `envgit rename OLD NEW` | Rename a variable |
+| `envgit copy KEY --from dev --to prod` | Copy a variable between environments |
 | `envgit list` | List all keys in the active environment |
 | `envgit list --show-values` | List keys and their values |
 
@@ -157,9 +157,9 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 | Command | Description |
 |---------|-------------|
 | `envgit envs` | List all environments with variable counts |
+| `envgit use <env>` | Switch active environment (like `git checkout`) |
 | `envgit add-env <name>` | Create a new environment |
-| `envgit unpack <env>` | Decrypt and write a formatted `.env` file |
-| `envgit copy KEY --from dev --to prod` | Copy a variable between environments |
+| `envgit unpack [env]` | Decrypt and write a formatted `.env` file |
 | `envgit diff dev prod` | Show what's different between two environments |
 | `envgit diff dev prod --show-values` | Include values in the diff |
 
@@ -176,19 +176,14 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 
 ### Utilities
 
-
-| Command | Description |
-|---------|-------------|
-| `envgit doctor` | Check everything — key, envs, git safety — in one shot |
-| `envgit audit` | Show which keys are missing across environments |
-| `envgit template` | Generate a `.env.example` with all keys, no values |
-| `envgit template --output .env.example --force` | Overwrite existing file |
-
-### Status
-
 | Command | Description |
 |---------|-------------|
 | `envgit status` | Show project root, active env, key location, `.env` state |
+| `envgit doctor` | Check everything — key, envs, git safety — in one shot |
+| `envgit audit` | Show which keys are missing across environments |
+| `envgit scan` | Scan codebase for hardcoded secrets using patterns and entropy analysis |
+| `envgit template` | Generate a `.env.example` with all keys, no values |
+| `envgit fix` | Post-upgrade repair: migrate config, fix permissions, update `.gitignore` |
 
 ---
 
@@ -299,12 +294,3 @@ AES-GCM requires a unique IV per (key, message) pair. Reusing an IV with the sam
 **Why zeroize key bytes after use?**
 Node.js buffers live in V8's heap. Without explicit zeroization, key bytes can persist in memory until GC runs — and could potentially be read from a core dump or swap file. envgit calls `buffer.fill(0)` immediately after the crypto operation completes.
 
----
-
-## Commands
-
-### Scan
-
-| Command | Description |
-|---------|-------------|
-| `envgit scan` | Scan entire codebase for hardcoded secrets using patterns + entropy |

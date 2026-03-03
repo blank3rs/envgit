@@ -10,7 +10,10 @@ export async function audit() {
   const config      = loadConfig(projectRoot);
 
   if (config.envs.length < 2) {
-    console.log(dim('\n  Need at least 2 environments to audit.\n'));
+    console.log('');
+    console.log(dim('  Only one environment — nothing to compare.'));
+    console.log(dim('  Add more with: envgit add-env <name>'));
+    console.log('');
     return;
   }
 

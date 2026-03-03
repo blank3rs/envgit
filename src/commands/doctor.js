@@ -5,11 +5,8 @@ import chalk from 'chalk';
 import { findProjectRoot, globalKeyPath } from '../keystore.js';
 import { loadConfig } from '../config.js';
 import { readEncEnv } from '../enc.js';
-import { bold, dim } from '../ui.js';
+import { ok as pass, fail, warn, bold, dim } from '../ui.js';
 
-function pass(msg)      { console.log(chalk.green(`  ✓ ${msg}`)); }
-function fail(msg)      { console.log(chalk.red(`  ✗ ${msg}`)); }
-function warn(msg)      { console.log(chalk.yellow(`  ⚠ ${msg}`)); }
 function section(title) { console.log(`\n${bold(title)}`); }
 
 export async function doctor() {
@@ -48,7 +45,7 @@ export async function doctor() {
       pass(`Key file found ${dim(keyPath)}`);
       key = readFileSync(keyPath, 'utf8').trim();
     } else {
-      fail('Key file missing — run: envgit share / envgit join');
+      fail('Key file missing — get it from a teammate: envgit join <token> --code <passphrase>');
       issues++;
     }
   } else {
@@ -57,7 +54,7 @@ export async function doctor() {
       warn(`Legacy key file at project root ${dim('(consider migrating)')}`);
       key = readFileSync(legacyPath, 'utf8').trim();
     } else {
-      fail('No key found — run: envgit keygen');
+      fail('No key found — ask a teammate to run: envgit share');
       issues++;
     }
   }

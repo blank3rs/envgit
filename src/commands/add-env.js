@@ -8,6 +8,10 @@ export async function addEnv(name) {
   const key = loadKey(projectRoot);
   const config = loadConfig(projectRoot);
 
+  if (!/^[a-z0-9_-]+$/i.test(name)) {
+    fatal(`Invalid environment name '${name}' — use only letters, numbers, hyphens, and underscores.`);
+  }
+
   if (config.envs.includes(name)) {
     fatal(`Environment '${name}' already exists.`);
   }

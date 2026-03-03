@@ -30,10 +30,7 @@ export async function rotateKey() {
   console.log(dim(`Old hint: ${oldHint}`));
   console.log(dim(`New hint: ${newHint}`));
   console.log('');
-  console.log(bold('New key:'));
-  console.log(`  ${newKey}`);
-  console.log('');
-  warn('Share the new key with your team! Old key is now invalid.');
-  console.log(dim('They can save it with: envgit keygen --set <key>'));
+  warn('Old key is now invalid — teammates need the new one.');
+  console.log(dim('Run envgit share, then send teammates the join command.'));
   console.log('');
 }

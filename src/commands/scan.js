@@ -21,27 +21,83 @@ const PATTERNS = [
   { name: 'Slack User Token',       regex: /\bxoxp-[0-9]{10,13}-[0-9]{10,13}-[0-9a-zA-Z]{24}\b/ },
   { name: 'SendGrid API Key',       regex: /\bSG\.[0-9a-zA-Z_-]{22}\.[0-9a-zA-Z_-]{43}\b/ },
   { name: 'Twilio API Key',         regex: /\bSK[0-9a-fA-F]{32}\b/ },
-  { name: 'Private Key Block',      regex: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
+  // Only flag actual PEM blocks — not code/tests referencing the header string
+  { name: 'Private Key Block',      regex: /^-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
   { name: 'Hardcoded secret',       regex: /(?:secret|password|passwd|api_?key|auth_?token)\s*[:=]\s*["']([^"'$`{]{8,})["']/i },
 ];
 
 const SKIP_DIRS = new Set([
-  'node_modules', '.git', '.envgit', 'dist', 'build', 'out',
-  '.next', '.nuxt', 'coverage', '.nyc_output', 'vendor', '.turbo',
+  // JS/TS
+  'node_modules', 'dist', 'build', 'out', '.next', '.nuxt', '.turbo',
+  'coverage', '.nyc_output',
+  // Python
+  '.venv', 'venv', 'env', '__pycache__', '.eggs', '*.egg-info',
+  'site-packages', '.pytest_cache', '.mypy_cache', '.ruff_cache',
+  // Ruby / Go / Rust
+  'vendor', 'target',
+  // VCS / tooling
+  '.git', '.envgit',
 ]);
 
 const SKIP_EXTENSIONS = new Set([
+  // Binaries & media
   '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.webp',
   '.woff', '.woff2', '.ttf', '.eot', '.otf',
   '.mp4', '.mp3', '.wav', '.pdf',
-  '.zip', '.tar', '.gz', '.tgz',
+  '.zip', '.tar', '.gz', '.tgz', '.rar', '.7z',
+  // Compiled / generated
+  '.pyc', '.pyo', '.class', '.so', '.dylib', '.dll', '.exe',
   '.map', '.lock', '.snap',
 ]);
 
 const SKIP_FILES = new Set([
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'poetry.lock',
   '.env.example', '.env.sample', '.env.template',
 ]);
+
+function isPlaceholder(v) {
+  v = v.trim();
+  if (v.length < 8) return true;
+
+  // Template syntax: <YOUR_KEY>, ${VAR}, env(VAR)
+  if (/^<.+>$/.test(v))          return true;
+  if (/^\$\{?.+\}?$/.test(v))    return true;
+  if (/^env\(.+\)$/.test(v))     return true;
+
+  // ALL_CAPS — it's an env var name being used as a placeholder value
+  if (/^[A-Z][A-Z0-9_]{3,}$/.test(v)) return true;
+
+  // snake_case_with_multiple_parts — looks like a variable name, not a secret
+  // e.g. google_api_key, test_api_key, gemini_api_key, client_secret
+  if (/^[a-z][a-z0-9]*(_[a-z0-9]+){2,}$/.test(v)) return true;
+
+  // Stripe / other test-mode key prefixes
+  if (/^sk_test_|^pk_test_|^rk_test_/.test(v)) return true;
+
+  // Contains ellipsis, stars, hashes — clearly masked/truncated
+  if (/\.{2,}|\*{3,}|#{3,}/.test(v)) return true;
+
+  // Repeating character (aaaaaaa, 111111)
+  if (/^(.)\1{4,}$/.test(v)) return true;
+
+  // Common placeholder keywords anywhere in the value
+  if (/\b(your|my|sample|example|demo|fake|dummy|mock|placeholder|changeme|replace|insert|fill_?in|put_?here|goes_?here|api_?key_?here)\b/i.test(v)) return true;
+
+  // Starts with "test" or "TEST" followed by separator (test-key, TEST_TOKEN)
+  if (/^test[-_]/i.test(v)) return true;
+
+  // The value IS the field name (secret = "secret", api_key = "api_key", token = "token")
+  if (/^(api[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret|bearer[_-]?token|x[_-]?api[_-]?key|private[_-]?key|secret[_-]?key)$/i.test(v)) return true;
+
+  // Common weak/example passwords
+  if (/^(password|passwd|p@ssw0rd|qwerty|admin|login|welcome|letmein|abc123|secret|monkey|dragon|master)/i.test(v)) return true;
+
+  // For Private Key Block pattern — only flag if it's an actual key block,
+  // not a string constant, comment, or code referencing the PEM header format
+  // (handled per-pattern in the caller)
+
+  return false;
+}
 
 // ── Shannon entropy ───────────────────────────────────────────────────────────
 
@@ -93,7 +149,10 @@ export async function scan() {
 
       // Known pattern matching
       for (const { name, regex } of PATTERNS) {
-        if (regex.test(line)) {
+        const m = line.match(regex);
+        if (m) {
+          const captured = m[1] ?? m[0];
+          if (isPlaceholder(captured)) continue;
           findings.push({ file: relPath, line: lineNum, type: name, snippet: line.trim(), how: 'pattern' });
           break;
         }
@@ -104,7 +163,8 @@ export async function scan() {
       let match;
       HIGH_ENTROPY_PATTERN.lastIndex = 0;
       while ((match = HIGH_ENTROPY_PATTERN.exec(line)) !== null) {
-        if (entropy(match[1]) >= ENTROPY_THRESHOLD && !alreadyCaught()) {
+        const value = match[1];
+        if (!isPlaceholder(value) && entropy(value) >= ENTROPY_THRESHOLD && !alreadyCaught()) {
           findings.push({ file: relPath, line: lineNum, type: 'High-entropy secret', snippet: line.trim(), how: 'entropy' });
         }
       }

@@ -2,7 +2,8 @@ import { requireProjectRoot, loadKey } from '../keystore.js';
 import { resolveEnv } from '../config.js';
 import { readEncEnv, writeEncEnv } from '../enc.js';
 import { getCurrentEnv } from '../state.js';
-import { ok, fatal, label } from '../ui.js';
+import { ok, fatal, label, envLabel } from '../ui.js';
+import { pickKey, promptInput } from '../interactive.js';
 
 export async function renameKey(oldName, newName, options) {
   const projectRoot = requireProjectRoot();
@@ -11,19 +12,17 @@ export async function renameKey(oldName, newName, options) {
 
   const vars = readEncEnv(projectRoot, envName, key);
 
-  if (!(oldName in vars)) {
-    fatal(`Key '${oldName}' not found in ${label(envName)}`);
-  }
+  const from = oldName ?? await pickKey(vars, `Key to rename in [${envName}]`);
+  const to   = newName ?? await promptInput(`New name for ${from}`);
 
-  if (newName in vars) {
-    fatal(`Key '${newName}' already exists in ${label(envName)}`);
-  }
+  if (!(from in vars)) fatal(`Key '${from}' not found in ${envLabel(envName)}`);
+  if (to in vars)      fatal(`Key '${to}' already exists in ${envLabel(envName)}`);
 
   const ordered = {};
   for (const [k, v] of Object.entries(vars)) {
-    ordered[k === oldName ? newName : k] = v;
+    ordered[k === from ? to : k] = v;
   }
 
   writeEncEnv(projectRoot, envName, key, ordered);
-  ok(`Renamed ${oldName} → ${newName} in ${label(envName)}`);
+  ok(`Renamed ${from} → ${to} in ${envLabel(envName)}`);
 }
