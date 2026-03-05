@@ -14,7 +14,7 @@ npm install -g @akshxy/envgit
 
 - Secrets are encrypted with **AES-256-GCM** and live in `.envgit/` — safe to commit
 - The key lives on **your machine only** (`~/.config/envgit/keys/`) — never touches the repo
-- Onboard a teammate in one command: `envgit share` → send them the link → they run `envgit join`
+- Onboard a teammate: `envgit share` → copy the output → send via Signal/iMessage → they run `envgit join`
 - `envgit unpack` writes a clean, **beautifully formatted `.env`** grouped by service
 
 ---
@@ -51,21 +51,21 @@ envgit set DB_URL=postgres://... OPENAI_API_KEY=sk-...
 git add .envgit/ && git commit -m "chore: encrypted env"
 
 envgit share
-# ✓ Key encrypted and uploaded. Link expires in 24 hours, usable once.
+# ✓ Key encrypted. Send the command below to your teammate via Signal, iMessage, email — anywhere.
 #
-#   envgit join abc123... --code Xk9mP2...==
+#   envgit join <blob> --code <passphrase>
 #
-# Send that one line to your teammate — nothing else needed.
+# Copy that one line and send it. Nothing was uploaded anywhere.
 
 # ── Developer B (teammate, after cloning) ─────────────────
-envgit join abc123... --code Xk9mP2...==
+envgit join <blob> --code <passphrase>
 # ✓ Key saved to ~/.config/envgit/keys/<project-id>.key
 
 envgit verify        # confirm the key works
 envgit unpack        # writes .env (picks up active env)
 ```
 
-The relay is **cryptographically blind** — it stores only AES-256-GCM ciphertext and never sees the passphrase. The link is deleted the moment your teammate uses it.
+**No server involved.** The blob is AES-256-GCM encrypted — useless without the passphrase. Send both parts via any channel you trust.
 
 ---
 
@@ -132,8 +132,8 @@ Supports 100+ services out of the box: OpenAI, Anthropic, Groq, Stripe, Supabase
 | Command | Description |
 |---------|-------------|
 | `envgit init` | Initialize project, generate key, save to `~/.config/envgit/keys/` |
-| `envgit share` | Upload encrypted key to a one-time relay link |
-| `envgit join <token> --code <passphrase>` | Download and save a key shared via `envgit share` |
+| `envgit share` | Encrypt key locally, print a blob + passphrase to send to a teammate |
+| `envgit join <blob> --code <passphrase>` | Save a key from `envgit share` output |
 | `envgit rotate-key` | Generate new key and re-encrypt all environments, then run `envgit share` |
 | `envgit verify` | Confirm all environments decrypt with the current key |
 
@@ -229,9 +229,7 @@ ENVGIT_KEY=$(cat ~/.config/envgit/keys/<id>.key) envgit run -- node server.js
 - **File permissions enforced** — key files are locked to `0600`, errors if too permissive
 - **Key bytes zeroized** from memory immediately after use
 - **No plaintext ever written** except when you explicitly run `envgit unpack`
-- **Relay is blind** — `envgit share` encrypts your key with a one-time passphrase before upload. The relay stores only ciphertext and never sees the passphrase. Even a full relay compromise leaks nothing.
-- **One-time links** — tokens are deleted on first use via a strongly consistent Durable Object. Replay attacks are impossible.
-- **24-hour TTL** — unclaimed tokens are automatically destroyed
+- **No server** — `envgit share` encrypts your key locally with a one-time passphrase. Nothing is uploaded anywhere. You send the blob yourself via any channel you trust.
 
 ---
 
@@ -242,9 +240,8 @@ ENVGIT_KEY=$(cat ~/.config/envgit/keys/<id>.key) envgit run -- node server.js
 | Threat | Protection |
 |--------|-----------|
 | `.env` accidentally committed to git | Encrypted files are safe to commit — plaintext never touches the repo |
-| Secrets shared over Slack, email, chat | `envgit share` uses a blind relay and one-time encrypted links |
+| Secrets shared over Slack, email, chat | `envgit share` outputs an AES-256-GCM blob — useless without the passphrase. Send both parts, split across channels if paranoid. |
 | Teammate's machine is compromised | Key is per-machine — compromise one machine, not all |
-| Relay is breached | Relay stores only AES-256-GCM ciphertext. Passphrase never sent to relay. Useless without the passphrase. |
 | Secrets hardcoded in source | `envgit scan` detects these using pattern matching and entropy analysis |
 
 **What envgit does NOT protect against**
@@ -258,26 +255,32 @@ ENVGIT_KEY=$(cat ~/.config/envgit/keys/<id>.key) envgit run -- node server.js
 ## How it works
 
 ```
-Your machine                  Relay                    Teammate's machine
-────────────────              ──────────────────       ──────────────────────
-                              (Cloudflare Worker)
+Your machine                                         Teammate's machine
+────────────────                                     ──────────────────────
+
 project.key (32 bytes)
     │
     ▼
-encrypt with                  ┌──────────────────┐
-one-time passphrase  ──────►  │  ciphertext only │  ──────►  fetch + decrypt
-                              │  deleted on read  │           with passphrase
-    │                         │  TTL: 24 hours   │               │
-    ▼                         └──────────────────┘               ▼
-envgit share                                             envgit join <token>
-prints:                                                  --code <passphrase>
-  token + passphrase                                         │
-                                                             ▼
+encrypt with
+one-time passphrase
+    │
+    ▼
+envgit share prints:
+  envgit join <blob> --code <passphrase>
+    │
+    │   ← you send this line via Signal, iMessage, email, etc. →
+    │
+    ▼                                                envgit join <blob> --code <passphrase>
+                                                         │
+                                                         ▼
+                                                     decrypt blob with passphrase
+                                                         │
+                                                         ▼
                                                      key saved to
                                                      ~/.config/envgit/keys/
 ```
 
-The relay is stateless and blind. It cannot reconstruct the key. Only the machine with the passphrase can decrypt.
+No server. No upload. The blob is AES-256-GCM encrypted — without the passphrase it is indistinguishable from random noise.
 
 ---
 

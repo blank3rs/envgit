@@ -134,8 +134,8 @@ program
   .action(share);
 
 program
-  .command('join <token>')
-  .description('Download and save a key shared via envgit share')
+  .command('join <blob>')
+  .description('Save a key from envgit share output')
   .requiredOption('--code <passphrase>', 'passphrase from the share output')
   .action(join);
 

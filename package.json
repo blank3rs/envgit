@@ -1,6 +1,6 @@
 {
   "name": "@akshxy/envgit",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Encrypted per-project environment variable manager",
   "type": "module",
   "bin": {
